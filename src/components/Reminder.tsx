@@ -26,6 +26,15 @@ import { Label } from '@/components/ui/label';
 
 const REMINDER_KEY = 'hydration-reminder';
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const DAYS_OF_WEEK = [
+  { label: 'Mo', value: 1 },
+  { label: 'Tu', value: 2 },
+  { label: 'We', value: 3 },
+  { label: 'Th', value: 4 },
+  { label: 'Fr', value: 5 },
+  { label: 'Sa', value: 6 },
+  { label: 'Su', value: 0 },
+];
 
 const Reminder = () => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -55,8 +64,12 @@ const Reminder = () => {
 
         if (checkDate <= now) continue;
 
-        if (reminder.repeat === 'once' || reminder.repeat === 'daily') {
-           if (i < 2) return checkDate; // Only check today and tomorrow for once/daily
+        if (reminder.repeat === 'daily') {
+          return checkDate;
+        }
+        
+        if (reminder.repeat === 'once') {
+          if (i < 2) return checkDate; // Only check today and tomorrow for 'once'
         }
         
         if (reminder.repeat === 'custom' && reminder.days.length > 0) {
@@ -123,6 +136,10 @@ const Reminder = () => {
     };
     
     const requestNotificationPermission = (callback: () => void) => {
+        if (!("Notification" in window)) {
+            toast.error("This browser does not support desktop notification.");
+            return;
+        }
         if (Notification.permission === "granted") {
             callback();
         } else if (Notification.permission !== "denied") {
@@ -157,9 +174,9 @@ const Reminder = () => {
     setIsSheetOpen(false);
   };
   
-  const handleDayToggle = (day: string) => {
+  const handleDayToggle = (dayValue: string) => {
     setCustomDays(prev => 
-        prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+        prev.includes(dayValue) ? prev.filter(d => d !== dayValue) : [...prev, dayValue]
     );
   };
 
@@ -178,6 +195,7 @@ const Reminder = () => {
   }
 
   const formatReminderText = (reminder: { time: string; repeat: string; days: number[] }) => {
+    if (!reminder.time) return 'Set a Reminder';
     const d = new Date(`1970-01-01T${reminder.time}`);
     const timeString = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -228,20 +246,17 @@ const Reminder = () => {
             <div className="grid grid-cols-4 items-start gap-4">
               <Label className="text-right pt-2">Days</Label>
                <div className="col-span-3 flex flex-wrap gap-1">
-                {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day, index) => {
-                    const dayValue = day === 'Su' ? 0 : index + 1;
-                    return (
-                        <Button
-                            key={day}
-                            variant={customDays.includes(String(dayValue)) ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handleDayToggle(String(dayValue))}
-                            className="h-8 w-8 p-0"
-                        >
-                            {day}
-                        </Button>
-                    )
-                })}
+                {DAYS_OF_WEEK.map((day) => (
+                  <Button
+                      key={day.value}
+                      variant={customDays.includes(String(day.value)) ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleDayToggle(String(day.value))}
+                      className="h-8 w-8 p-0"
+                  >
+                      {day.label}
+                  </Button>
+                ))}
               </div>
             </div>
           )}
