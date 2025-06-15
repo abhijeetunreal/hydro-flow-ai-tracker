@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { format, subDays, isAfter, parseISO } from 'date-fns';
@@ -232,7 +231,7 @@ const useWaterData = (user: UserProfile | null) => {
     const newData: StoredData = { history: newHistory, reminders, lastModified: new Date().toISOString() };
     
     setData(newData);
-    // syncToDrive(newData); // Removed to prevent sync on every log
+    syncToDrive(newData);
 
     if (newIntake >= dailyGoal && !wasGoalMetBefore) {
       const newStreak = calculateStreak(newHistory, dailyGoal);
@@ -240,7 +239,7 @@ const useWaterData = (user: UserProfile | null) => {
         description: `You're on a ${newStreak}-day streak!`,
       });
     }
-  }, [currentIntake, dailyGoal, history, reminders, setData]);
+  }, [currentIntake, dailyGoal, history, reminders, setData, syncToDrive]);
   
   const saveReminder = useCallback(async (reminderToSave: ReminderType) => {
     const isEditing = reminders.some(r => r.id === reminderToSave.id);
@@ -251,15 +250,17 @@ const useWaterData = (user: UserProfile | null) => {
     
     const newData: StoredData = { history, reminders: newReminders, lastModified: new Date().toISOString() };
     setData(newData);
+    await syncToDrive(newData);
     toast.success("Reminder saved!");
-  }, [history, reminders, setData]);
+  }, [history, reminders, setData, syncToDrive]);
 
   const deleteReminder = useCallback(async (reminderId: string) => {
     const newReminders = reminders.filter(r => r.id !== reminderId);
     const newData: StoredData = { history, reminders: newReminders, lastModified: new Date().toISOString() };
     setData(newData);
+    await syncToDrive(newData);
     toast.info("Reminder deleted.");
-  }, [history, reminders, setData]);
+  }, [history, reminders, setData, syncToDrive]);
 
   return { currentIntake, dailyGoal, addWater, streak, history, todaysLogs, isSyncing, reminders, saveReminder, deleteReminder };
 };
