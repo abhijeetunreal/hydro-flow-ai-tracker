@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import StatsCard from "@/components/StatsCard";
 import HealthTips from "@/components/HealthTips";
 import Reminder from "@/components/Reminder";
-import { Star, Droplet } from "lucide-react";
+import HistoryCalendar from "@/components/HistoryCalendar";
+import IntakeLog from "@/components/IntakeLog";
+import { Droplet } from "lucide-react";
 
 const Index = () => {
-  const { currentIntake, dailyGoal, addWater, streak } = useWaterData();
+  const { currentIntake, dailyGoal, addWater, streak, history, todaysLogs } = useWaterData();
 
   const intakeOptions = [250, 500, 750];
 
@@ -33,10 +35,12 @@ const Index = () => {
               ))}
             </div>
           </div>
+          
+          <IntakeLog logs={todaysLogs} />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <StatsCard title="Daily Goal" value={`${dailyGoal / 1000}L`} Icon={Droplet} />
-            <StatsCard title="Hydration Streak" value={`${streak} days`} Icon={Star} />
+            <HistoryCalendar history={history} dailyGoal={dailyGoal} streak={streak} />
           </div>
 
           <HealthTips />

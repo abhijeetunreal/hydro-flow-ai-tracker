@@ -1,68 +1,105 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
+import { format, subDays, isSameDay, parseISO } from 'date-fns';
 
-const getToday = () => new Date().toISOString().split('T')[0];
+const STORAGE_KEY = 'aquaTrackHistoryV2';
+
+type Log = {
+  amount: number;
+  time: string;
+};
+
+type History = {
+  [date: string]: Log[];
+};
+
+const getTodayString = () => format(new Date(), 'yyyy-MM-dd');
+
+const calculateStreak = (history: History, dailyGoal: number): number => {
+  if (!history || Object.keys(history).length === 0) return 0;
+
+  let streak = 0;
+  let checkDate = new Date();
+  
+  // First, check if today's goal is met. If not, the current streak displayed should be the one ending yesterday.
+  const todayStr = format(checkDate, 'yyyy-MM-dd');
+  const todayIntake = history[todayStr]?.reduce((sum, log) => sum + log.amount, 0) || 0;
+
+  if (todayIntake < dailyGoal) {
+    checkDate = subDays(checkDate, 1);
+  }
+
+  // Now, count backwards from checkDate
+  while (true) {
+    const dateStr = format(checkDate, 'yyyy-MM-dd');
+    const dayIntake = history[dateStr]?.reduce((sum, log) => sum + log.amount, 0) || 0;
+
+    if (dayIntake >= dailyGoal) {
+      streak++;
+      checkDate = subDays(checkDate, 1);
+    } else {
+      break; // Streak broken
+    }
+  }
+
+  return streak;
+}
 
 const useWaterData = () => {
-  const dailyGoal = 3000; // 3000ml = 3L
-  const [currentIntake, setCurrentIntake] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [lastLogDate, setLastLogDate] = useState<string | null>(null);
+  const dailyGoal = 3000;
+  const [history, setHistory] = useState<History>({});
 
   useEffect(() => {
-    const savedData = localStorage.getItem('waterTrackerData');
-    if (savedData) {
-      const { intake, streak, date } = JSON.parse(savedData);
-      const today = getToday();
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-      
-      if (date === today) {
-        setCurrentIntake(intake);
-        setStreak(streak);
-      } else if (date === yesterday && intake >= dailyGoal) {
-        // Continue streak
-        setCurrentIntake(0);
-        setStreak(streak);
-      } else if (date === yesterday && intake < dailyGoal) {
-        // Reset streak
-        setCurrentIntake(0);
-        setStreak(0);
-        toast.info("Streak reset! Let's start a new one today.");
-      } else {
-        // day was missed
-        setCurrentIntake(0);
-        setStreak(0);
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        setHistory(JSON.parse(savedData));
       }
-      setLastLogDate(date);
+    } catch (error) {
+      console.error("Failed to parse history from localStorage", error);
+      setHistory({});
     }
   }, []);
 
-  const saveData = (intake: number, currentStreak: number) => {
-    const today = getToday();
-    const newData = { intake, streak: currentStreak, date: today };
-    localStorage.setItem('waterTrackerData', JSON.stringify(newData));
-  };
+  const saveData = useCallback((newHistory: History) => {
+    setHistory(newHistory);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
+  }, []);
 
-  const addWater = (amount: number) => {
+  const { currentIntake, todaysLogs, streak } = useMemo(() => {
+    const todayStr = getTodayString();
+    const localTodaysLogs = history[todayStr] || [];
+    const localCurrentIntake = localTodaysLogs.reduce((sum, log) => sum + log.amount, 0);
+    const localStreak = calculateStreak(history, dailyGoal);
+
+    return {
+      currentIntake: localCurrentIntake,
+      todaysLogs: localTodaysLogs,
+      streak: localStreak,
+    };
+  }, [history, dailyGoal]);
+
+  const addWater = useCallback((amount: number) => {
+    const wasGoalMetBefore = currentIntake >= dailyGoal;
     const newIntake = currentIntake + amount;
-    const wasGoalMet = currentIntake < dailyGoal;
-    
-    setCurrentIntake(newIntake);
-    let newStreak = streak;
 
-    if (newIntake >= dailyGoal && wasGoalMet) {
-      newStreak = lastLogDate === new Date(Date.now() - 86400000).toISOString().split('T')[0] ? streak + 1 : 1;
-      setStreak(newStreak);
+    const todayStr = getTodayString();
+    const newLog: Log = { amount, time: new Date().toISOString() };
+    const updatedTodaysLogs = [...(history[todayStr] || []), newLog];
+    
+    const newHistory = { ...history, [todayStr]: updatedTodaysLogs };
+    saveData(newHistory);
+
+    if (newIntake >= dailyGoal && !wasGoalMetBefore) {
+      const newStreak = calculateStreak(newHistory, dailyGoal);
       toast.success("🎉 Goal reached! You're awesome!", {
-        description: `You've started a ${newStreak}-day streak!`,
+        description: `You're on a ${newStreak}-day streak!`,
       });
     }
-    
-    saveData(newIntake, newStreak);
-  };
+  }, [currentIntake, dailyGoal, history, saveData]);
   
-  return { currentIntake, dailyGoal, addWater, streak };
+  return { currentIntake, dailyGoal, addWater, streak, history, todaysLogs };
 };
 
 export default useWaterData;
