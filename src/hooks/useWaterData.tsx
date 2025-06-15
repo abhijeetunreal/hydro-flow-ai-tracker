@@ -1,9 +1,8 @@
-
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
-import { format, subDays, isSameDay, parseISO } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
-const STORAGE_KEY = 'aquaTrackHistoryV2';
+const BASE_STORAGE_KEY = 'aquaTrackHistoryV2';
 
 type Log = {
   amount: number;
@@ -13,6 +12,10 @@ type Log = {
 type History = {
   [date: string]: Log[];
 };
+
+interface UserProfile {
+  email: string;
+}
 
 const getTodayString = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -46,26 +49,50 @@ const calculateStreak = (history: History, dailyGoal: number): number => {
   return streak;
 }
 
-const useWaterData = () => {
+const useWaterData = (user: UserProfile | null) => {
   const dailyGoal = 3000;
   const [history, setHistory] = useState<History>({});
 
+  const storageKey = useMemo(() => {
+    if (user?.email) {
+      return `${BASE_STORAGE_KEY}_${user.email}`;
+    }
+    return null;
+  }, [user]);
+
   useEffect(() => {
-    try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
-      if (savedData) {
-        setHistory(JSON.parse(savedData));
+    if (storageKey) {
+      try {
+        const savedData = localStorage.getItem(storageKey);
+        if (savedData) {
+          setHistory(JSON.parse(savedData));
+        } else {
+          // No data for this user, check for anonymous data to migrate
+          const anonymousData = localStorage.getItem(BASE_STORAGE_KEY);
+          if (anonymousData) {
+            const parsedAnonymousData = JSON.parse(anonymousData);
+            setHistory(parsedAnonymousData);
+            localStorage.setItem(storageKey, anonymousData);
+            localStorage.removeItem(BASE_STORAGE_KEY); // Remove old data after migration
+          } else {
+            setHistory({});
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse history from localStorage", error);
+        setHistory({});
       }
-    } catch (error) {
-      console.error("Failed to parse history from localStorage", error);
+    } else {
       setHistory({});
     }
-  }, []);
+  }, [storageKey]);
 
   const saveData = useCallback((newHistory: History) => {
-    setHistory(newHistory);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
-  }, []);
+    if (storageKey) {
+      setHistory(newHistory);
+      localStorage.setItem(storageKey, JSON.stringify(newHistory));
+    }
+  }, [storageKey]);
 
   const { currentIntake, todaysLogs, streak } = useMemo(() => {
     const todayStr = getTodayString();

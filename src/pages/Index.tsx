@@ -1,4 +1,3 @@
-
 import useWaterData from "@/hooks/useWaterData";
 import WaterGlass from "@/components/WaterGlass";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ import UserProfile from "@/components/auth/UserProfile";
 
 const Index = () => {
   const { user } = useAuth();
-  const { currentIntake, dailyGoal, addWater, streak, history, todaysLogs } = useWaterData();
+  const { currentIntake, dailyGoal, addWater, streak, history, todaysLogs } = useWaterData(user);
 
   const intakeOptions = [250, 500, 750];
 
