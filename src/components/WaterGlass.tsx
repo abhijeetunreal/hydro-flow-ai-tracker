@@ -28,25 +28,25 @@ const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal, logs = [] }) => {
   });
 
   const bubbles = React.useMemo(() => Array.from({ length: 15 }).map((_, i) => ({
-    x: Math.random() * 70 + 45, // Random x within the bottle body
+    x: Math.random() * 70 + 45, // Random x within the glass body
     duration: `${Math.random() * 5 + 4}s`,
     delay: `${Math.random() * 5}s`,
     size: Math.random() * 3 + 1,
   })), []);
   
-  const bottlePath = "M50,260 C40,240 30,150 30,100 C30,40 50,10 80,10 C110,10 130,40 130,100 C130,150 120,240 110,260 L50,260 Z";
+  const glassPath = "M45,260 L35,10 L125,10 L115,260Z";
 
   return (
     <div className="relative w-48 h-72">
       <svg viewBox="0 0 160 270" className="w-full h-full drop-shadow-lg">
         <defs>
-          <clipPath id="bottleClip">
-            <path d={bottlePath} />
+          <clipPath id="glassClip">
+            <path d={glassPath} />
           </clipPath>
         </defs>
 
         {/* Water and bubbles */}
-        <g clipPath="url(#bottleClip)">
+        <g clipPath="url(#glassClip)">
           <rect
             x="0"
             y={270 * (1 - fillPercentage / 100)}
@@ -68,11 +68,15 @@ const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal, logs = [] }) => {
           ))}
         </g>
         
-        {/* Bottle Outline */}
-        <path d={bottlePath} className="stroke-white/20 fill-white/10 stroke-2" />
+        {/* Glass Outline */}
+        <path d={glassPath} className="stroke-white/20 fill-white/10 stroke-2" />
+
+        {/* Glass Base */}
+        <path d="M45,260 L115,260 L113,255 C90,240 70,240 47,255 Z" className="fill-white/20" />
 
         {/* Reflection */}
-        <path d="M85,30 C105,80 110,150 100,220" className="stroke-white/20 stroke-[4px] fill-none" />
+        <path d="M45,15 L50,255" className="stroke-white/20 stroke-2 fill-none opacity-70" />
+        <path d="M115,15 L110,255" className="stroke-white/20 stroke-2 fill-none opacity-70" />
       </svg>
       
       {/* Log Markers */}
