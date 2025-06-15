@@ -7,18 +7,29 @@ import HealthTips from "@/components/HealthTips";
 import Reminder from "@/components/Reminder";
 import HistoryCalendar from "@/components/HistoryCalendar";
 import { Droplet } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import Login from "@/components/auth/Login";
+import UserProfile from "@/components/auth/UserProfile";
 
 const Index = () => {
+  const { user } = useAuth();
   const { currentIntake, dailyGoal, addWater, streak, history, todaysLogs } = useWaterData();
 
   const intakeOptions = [250, 500, 750];
 
+  if (!user) {
+    return <Login />;
+  }
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-md md:max-w-2xl mx-auto space-y-6">
-        <header className="text-center">
-          <h1 className="text-3xl font-bold text-foreground">AquaTrack</h1>
-          <p className="text-muted-foreground">Stay hydrated, stay healthy.</p>
+        <header className="flex justify-between items-center w-full">
+          <div className="text-left">
+            <h1 className="text-3xl font-bold text-foreground">AquaTrack</h1>
+            <p className="text-muted-foreground">Stay hydrated, stay healthy.</p>
+          </div>
+          <UserProfile />
         </header>
 
         <main className="space-y-6">
