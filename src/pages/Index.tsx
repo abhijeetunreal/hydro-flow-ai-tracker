@@ -36,27 +36,27 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-secondary/40">
-      <div className="w-full max-w-md md:max-w-2xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <header className="flex justify-between items-center w-full">
-          <div className="text-left">
-            <h1 className="text-3xl font-bold text-foreground">AquaTrack</h1>
-            <p className="text-muted-foreground">Stay hydrated, stay healthy.</p>
+    <div className="min-h-screen w-full bg-background bg-grid">
+      <div className="w-full max-w-md md:max-w-2xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+        <header className="flex justify-between items-center w-full pt-4">
+          <div className="flex items-center gap-3">
+            <Droplet className="h-8 w-8 text-primary"/>
+            <h1 className="text-3xl font-bold text-foreground text-glow">AquaTrack</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             {isSyncing && <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />}
             <UserProfile />
           </div>
         </header>
 
-        <main className="space-y-6">
+        <main className="space-y-8">
           <Card>
-            <CardHeader className="text-center">
+            <CardHeader className="text-center pb-2">
               <CardTitle>Today's Hydration</CardTitle>
               <CardDescription>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</CardDescription>
             </CardHeader>
-            <CardContent className="flex justify-center py-8">
-              <WaterGlass intake={currentIntake} goal={dailyGoal} logs={todaysLogs} />
+            <CardContent className="flex justify-center py-6">
+              <WaterGlass intake={currentIntake} goal={dailyGoal} />
             </CardContent>
           </Card>
           
@@ -67,7 +67,7 @@ const Index = () => {
             </CardHeader>
             <CardContent className="flex justify-center gap-3">
               {intakeOptions.map((amount) => (
-                <Button key={amount} onClick={() => addWater(amount)} variant="default" size="lg" className="rounded-full shadow-lg">
+                <Button key={amount} onClick={() => addWater(amount)} variant="default" size="lg" className="rounded-full !h-20 !w-20 text-lg">
                   +{amount}ml
                 </Button>
               ))}

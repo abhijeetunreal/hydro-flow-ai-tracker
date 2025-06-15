@@ -1,34 +1,19 @@
 
 import React from 'react';
-import { format } from 'date-fns';
-
-type Log = {
-  amount: number;
-  time: string;
-};
 
 interface WaterGlassProps {
   intake: number;
   goal: number;
-  logs: Log[];
 }
 
-const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal, logs = [] }) => {
+const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal }) => {
   const fillPercentage = goal > 0 ? Math.min((intake / goal) * 100, 100) : 0;
   const textFillPercentage = goal > 0 ? Math.round((intake / goal) * 100) : 0;
   const isGoalExceeded = intake > goal;
   const excessAmount = intake - goal;
 
-  let cumulativeIntake = 0;
-  const logMarkers = logs.map(log => {
-      cumulativeIntake += log.amount;
-      const logIntakeLevel = goal > 0 ? Math.min((cumulativeIntake / goal) * 100, 100) : 0;
-      return {
-          level: logIntakeLevel,
-          time: format(new Date(log.time), 'p'),
-          amount: log.amount,
-      };
-  });
+  const glassPath = "M45,260 L35,40 C35,20 125,20 125,40 L115,260Z";
+  const waterY = 270 * (1 - fillPercentage / 100);
 
   const bubbles = React.useMemo(() => Array.from({ length: 15 }).map((_, i) => ({
     x: Math.random() * 70 + 45, // Random x within the glass body
@@ -37,28 +22,32 @@ const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal, logs = [] }) => {
     size: Math.random() * 3 + 1,
   })), []);
   
-  const glassPath = "M45,260 L35,10 L125,10 L115,260Z";
-
   return (
     <div className="relative w-48 h-72">
-      <svg viewBox="0 0 160 270" className="w-full h-full drop-shadow-lg">
+      <svg viewBox="0 0 160 270" className="w-full h-full drop-shadow-[0_10px_15px_hsl(var(--primary)/0.25)]">
         <defs>
           <clipPath id="glassClip">
             <path d={glassPath} />
           </clipPath>
+          <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="hsl(var(--accent))" />
+            <stop offset="100%" stopColor="hsl(var(--primary))" />
+          </linearGradient>
         </defs>
 
-        {/* Water and bubbles */}
+        {/* Water and waves */}
         <g clipPath="url(#glassClip)">
+          {/* Main water body */}
           <rect
             x="0"
-            y={270 * (1 - fillPercentage / 100)}
+            y={waterY}
             width="160"
-            height={270 * (fillPercentage / 100)}
-            className="fill-primary/80 transition-all duration-1000 ease-in-out"
+            height={270 - waterY}
+            fill="url(#waterGradient)"
+            className="transition-all duration-1000 ease-in-out"
           />
 
-          {/* Bubbles in SVG */}
+           {/* Bubbles in SVG */}
           {fillPercentage > 0 && bubbles.map((bubble, i) => (
             <g key={i} className="animate-bubble-rise" style={{ animationDuration: bubble.duration, animationDelay: bubble.delay, transformBox: 'fill-box', transformOrigin: 'bottom' }}>
               <circle
@@ -69,57 +58,38 @@ const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal, logs = [] }) => {
               />
             </g>
           ))}
+
+          {/* Animated Wave */}
+          {fillPercentage > 0 && (
+            <path
+              d={`M-160,${waterY + 5} Q-80,${waterY - 15}, 0,${waterY + 5} T160,${waterY + 5} T320,${waterY + 5} T480,${waterY + 5}`}
+              fill="hsl(var(--primary) / 0.5)"
+              className="animate-wave"
+              style={{ width: '300%' }}
+            />
+          )}
         </g>
         
         {/* Glass Outline */}
-        <path d={glassPath} className="stroke-border/70 fill-background/50 stroke-2" />
+        <path d={glassPath} className="stroke-primary/50 fill-card/30 stroke-2" />
 
-        {/* Measurement lines */}
-        {[25, 50, 75].map((p, i) => {
-          const y = 260 - (250 * p / 100);
-          const isMajor = p % 25 === 0;
-          const x1 = isMajor ? 38 : 42;
-          const x2 = isMajor ? 45 : 42;
-          return (
-            <g key={p}>
-                <line x1={x1} y1={y} x2={x2} y2={y} className="stroke-border/50" strokeWidth="1.5"/>
-            </g>
-          )
-        })}
-
+        {/* Metallic Rim */}
+        <path d="M35,40 C35,20 125,20 125,40 C125,35 35,35 35,40" className="fill-slate-300/20" />
+        <path d="M36,38 C36,22 124,22 124,38 C124,34 36,34 36,38" className="fill-slate-400/30" />
 
         {/* Glass Base */}
         <path d="M45,260 L115,260 L113,255 C90,240 70,240 47,255 Z" className="fill-border/30" />
 
         {/* Reflection */}
-        <path d="M55,25 L60,245" className="stroke-white/20 stroke-1 fill-none opacity-50" />
+        <path d="M55,50 L60,245" className="stroke-white/20 stroke-1 fill-none opacity-50" />
       </svg>
       
-      {/* Log Markers */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        {logMarkers.map((marker, index) => (
-          <div
-            key={index}
-            className="absolute w-[calc(100%-20px)] left-[10px] flex items-center z-10"
-            style={{ 
-              bottom: `${marker.level}%`, 
-              transform: 'translateY(50%)',
-            }}
-          >
-            <div className="w-full h-px bg-primary-foreground/30"></div>
-            <span className="absolute right-full mr-2 text-xs text-muted-foreground whitespace-nowrap bg-background/50 px-1 rounded pointer-events-auto">
-              +{marker.amount}ml, {marker.time}
-            </span>
-          </div>
-        ))}
-      </div>
-
       {/* Text Overlay */}
       <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-center pb-8 pointer-events-none">
-        <p className="text-4xl font-bold text-primary-foreground drop-shadow-md">
+        <p className="text-5xl font-black text-white drop-shadow-lg text-glow">
           {textFillPercentage}%
         </p>
-        <p className="text-sm font-semibold text-primary-foreground/80 drop-shadow-md">
+        <p className="text-sm font-semibold text-primary-foreground/80 drop-shadow-md uppercase tracking-wider">
           {isGoalExceeded
             ? `Goal: ${goal}ml (+${excessAmount}ml)`
             : `${intake} / ${goal} ml`}

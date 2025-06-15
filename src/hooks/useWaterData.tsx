@@ -92,9 +92,7 @@ const useWaterData = (user: UserProfile | null) => {
         const newFile = await driveService.createDataFile(accessToken, data);
         if (newFile) setDriveFile(newFile);
       }
-      toast.success("Data synced to Google Drive.");
     } catch (error) {
-      toast.error("Failed to sync data.");
       console.error("Sync to drive failed", error);
     } finally {
       setIsSyncing(false);
@@ -120,7 +118,6 @@ const useWaterData = (user: UserProfile | null) => {
         if (!localData || isAfter(parseISO(remoteData.lastModified), parseISO(localData.lastModified))) {
           // Cloud is newer or no local, use cloud
           setLocalData(remoteData);
-          toast.info("Data loaded from Google Drive.");
         } else if (isAfter(parseISO(localData.lastModified), parseISO(remoteData.lastModified))) {
           // Local is newer, push to cloud
           await syncToDrive(localData);

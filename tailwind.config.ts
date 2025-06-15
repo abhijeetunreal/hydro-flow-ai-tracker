@@ -19,6 +19,9 @@ export default {
 			}
 		},
 		extend: {
+      fontFamily: {
+        orbitron: ['Orbitron', 'sans-serif'],
+      },
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -86,17 +89,22 @@ export default {
         },
         'bubble-rise': {
           '0%': { transform: 'translateY(0) scale(1)', opacity: '0.7' },
+          '50%': { opacity: '1' },
           '100%': { transform: 'translateY(-250px) scale(1.5)', opacity: '0' },
-        }
+        },
+        'wave': {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
         'fill-up': 'fill-up 1s ease-out',
-        'bubble-rise': 'bubble-rise 4s ease-in-out infinite'
+        'bubble-rise': 'bubble-rise 4s ease-in-out infinite',
+        'wave': 'wave 4s cubic-bezier(0.36, 0.45, 0.63, 0.53) infinite',
 			}
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
 } satisfies Config;
-
