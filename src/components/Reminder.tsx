@@ -36,9 +36,11 @@ const Reminder = () => {
     const reminderDate = new Date();
     reminderDate.setHours(hours, minutes, 0, 0);
 
+    let isForTomorrow = false;
     if (reminderDate <= now) {
       // If time is in the past, set it for the next day
       reminderDate.setDate(reminderDate.getDate() + 1);
+      isForTomorrow = true;
     }
     
     const timeToReminder = reminderDate.getTime() - now.getTime();
@@ -52,7 +54,11 @@ const Reminder = () => {
                 });
             }, timeToReminder);
     
-            toast.success(`Reminder set for ${reminderDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}!`);
+            const successMessage = isForTomorrow 
+                ? `Reminder set for tomorrow at ${reminderDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                : `Reminder set for ${reminderDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+            toast.success(successMessage);
             setIsSheetOpen(false);
             setReminderTime('');
         } else {

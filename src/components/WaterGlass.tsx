@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 
@@ -15,6 +14,9 @@ interface WaterGlassProps {
 
 const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal, logs = [] }) => {
   const fillPercentage = goal > 0 ? Math.min((intake / goal) * 100, 100) : 0;
+  const textFillPercentage = goal > 0 ? Math.round((intake / goal) * 100) : 0;
+  const isGoalExceeded = intake > goal;
+  const excessAmount = intake - goal;
 
   let cumulativeIntake = 0;
   const logMarkers = logs.map(log => {
@@ -101,10 +103,12 @@ const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal, logs = [] }) => {
       {/* Text Overlay */}
       <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-center pb-8 pointer-events-none">
         <p className="text-4xl font-bold text-primary-foreground drop-shadow-md">
-          {Math.round(fillPercentage)}%
+          {textFillPercentage}%
         </p>
-        <p className="text-sm text-primary-foreground/80 drop-shadow-md">
-          {intake} / {goal} ml
+        <p className="text-sm font-semibold text-primary-foreground/80 drop-shadow-md">
+          {isGoalExceeded
+            ? `Goal: ${goal}ml (+${excessAmount}ml)`
+            : `${intake} / ${goal} ml`}
         </p>
       </div>
     </div>
