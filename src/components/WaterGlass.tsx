@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { format } from 'date-fns';
 
@@ -71,14 +72,27 @@ const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal, logs = [] }) => {
         </g>
         
         {/* Glass Outline */}
-        <path d={glassPath} className="stroke-white/20 fill-white/10 stroke-2" />
+        <path d={glassPath} className="stroke-border/70 fill-background/50 stroke-2" />
+
+        {/* Measurement lines */}
+        {[25, 50, 75].map((p, i) => {
+          const y = 260 - (250 * p / 100);
+          const isMajor = p % 25 === 0;
+          const x1 = isMajor ? 38 : 42;
+          const x2 = isMajor ? 45 : 42;
+          return (
+            <g key={p}>
+                <line x1={x1} y1={y} x2={x2} y2={y} className="stroke-border/50" strokeWidth="1.5"/>
+            </g>
+          )
+        })}
+
 
         {/* Glass Base */}
-        <path d="M45,260 L115,260 L113,255 C90,240 70,240 47,255 Z" className="fill-white/20" />
+        <path d="M45,260 L115,260 L113,255 C90,240 70,240 47,255 Z" className="fill-border/30" />
 
         {/* Reflection */}
-        <path d="M45,15 L50,255" className="stroke-white/20 stroke-2 fill-none opacity-70" />
-        <path d="M115,15 L110,255" className="stroke-white/20 stroke-2 fill-none opacity-70" />
+        <path d="M55,25 L60,245" className="stroke-white/20 stroke-1 fill-none opacity-50" />
       </svg>
       
       {/* Log Markers */}

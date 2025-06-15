@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
-import { format, subDays } from 'date-fns';
+import { format, subDays, isAfter, parseISO } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+import * as driveService from '@/services/driveService';
 
-const BASE_STORAGE_KEY = 'aquaTrackHistoryV2';
+const BASE_STORAGE_KEY = 'aquaTrackHistoryV3';
 
 type Log = {
   amount: number;
@@ -11,6 +13,11 @@ type Log = {
 
 type History = {
   [date: string]: Log[];
+};
+
+type StoredData = {
+  history: History;
+  lastModified: string;
 };
 
 interface UserProfile {
@@ -50,49 +57,91 @@ const calculateStreak = (history: History, dailyGoal: number): number => {
 }
 
 const useWaterData = (user: UserProfile | null) => {
+  const { accessToken } = useAuth();
   const dailyGoal = 3000;
   const [history, setHistory] = useState<History>({});
+  const [lastModified, setLastModified] = useState<string | null>(null);
+  const [driveFile, setDriveFile] = useState<driveService.DriveFile | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const storageKey = useMemo(() => {
-    if (user?.email) {
-      return `${BASE_STORAGE_KEY}_${user.email}`;
-    }
-    return null;
+    return user?.email ? `${BASE_STORAGE_KEY}_${user.email}` : null;
   }, [user]);
 
-  useEffect(() => {
+  const getLocalData = useCallback((): StoredData | null => {
+    if (!storageKey) return null;
+    const localData = localStorage.getItem(storageKey);
+    return localData ? JSON.parse(localData) : null;
+  }, [storageKey]);
+
+  const setLocalData = useCallback((data: StoredData) => {
+    setHistory(data.history);
+    setLastModified(data.lastModified);
     if (storageKey) {
-      try {
-        const savedData = localStorage.getItem(storageKey);
-        if (savedData) {
-          setHistory(JSON.parse(savedData));
-        } else {
-          // No data for this user, check for anonymous data to migrate
-          const anonymousData = localStorage.getItem(BASE_STORAGE_KEY);
-          if (anonymousData) {
-            const parsedAnonymousData = JSON.parse(anonymousData);
-            setHistory(parsedAnonymousData);
-            localStorage.setItem(storageKey, anonymousData);
-            localStorage.removeItem(BASE_STORAGE_KEY); // Remove old data after migration
-          } else {
-            setHistory({});
-          }
-        }
-      } catch (error) {
-        console.error("Failed to parse history from localStorage", error);
-        setHistory({});
-      }
-    } else {
-      setHistory({});
+      localStorage.setItem(storageKey, JSON.stringify(data));
     }
   }, [storageKey]);
 
-  const saveData = useCallback((newHistory: History) => {
-    if (storageKey) {
-      setHistory(newHistory);
-      localStorage.setItem(storageKey, JSON.stringify(newHistory));
+  const syncToDrive = useCallback(async (data: StoredData) => {
+    if (!accessToken) return;
+    setIsSyncing(true);
+    try {
+      if (driveFile?.id) {
+        await driveService.updateDataFile(accessToken, driveFile.id, data);
+      } else {
+        const newFile = await driveService.createDataFile(accessToken, data);
+        if (newFile) setDriveFile(newFile);
+      }
+      toast.success("Data synced to Google Drive.");
+    } catch (error) {
+      toast.error("Failed to sync data.");
+      console.error("Sync to drive failed", error);
+    } finally {
+      setIsSyncing(false);
     }
-  }, [storageKey]);
+  }, [accessToken, driveFile]);
+
+  useEffect(() => {
+    if (!accessToken || !storageKey) {
+        setHistory({});
+        setLastModified(null);
+        return;
+    };
+
+    const initialSync = async () => {
+      setIsSyncing(true);
+      const remoteFile = await driveService.findDataFile(accessToken);
+      const localData = getLocalData();
+      
+      if (remoteFile) {
+        setDriveFile(remoteFile);
+        const remoteData = await driveService.readFileContent(accessToken, remoteFile.id);
+        
+        if (!localData || isAfter(parseISO(remoteData.lastModified), parseISO(localData.lastModified))) {
+          // Cloud is newer or no local, use cloud
+          setLocalData(remoteData);
+          toast.info("Data loaded from Google Drive.");
+        } else if (isAfter(parseISO(localData.lastModified), parseISO(remoteData.lastModified))) {
+          // Local is newer, push to cloud
+          await syncToDrive(localData);
+        } else {
+          // They are in sync
+          setLocalData(localData);
+        }
+      } else if (localData) {
+        // No cloud file, but local exists, push to cloud
+        await syncToDrive(localData);
+      } else {
+        // First time user, create initial data
+        const initialData = { history: {}, lastModified: new Date().toISOString() };
+        setLocalData(initialData);
+        await syncToDrive(initialData);
+      }
+      setIsSyncing(false);
+    };
+
+    initialSync();
+  }, [accessToken, storageKey, getLocalData, setLocalData, syncToDrive]);
 
   const { currentIntake, todaysLogs, streak } = useMemo(() => {
     const todayStr = getTodayString();
@@ -116,7 +165,10 @@ const useWaterData = (user: UserProfile | null) => {
     const updatedTodaysLogs = [...(history[todayStr] || []), newLog];
     
     const newHistory = { ...history, [todayStr]: updatedTodaysLogs };
-    saveData(newHistory);
+    const newData: StoredData = { history: newHistory, lastModified: new Date().toISOString() };
+    
+    setLocalData(newData);
+    syncToDrive(newData);
 
     if (newIntake >= dailyGoal && !wasGoalMetBefore) {
       const newStreak = calculateStreak(newHistory, dailyGoal);
@@ -124,9 +176,9 @@ const useWaterData = (user: UserProfile | null) => {
         description: `You're on a ${newStreak}-day streak!`,
       });
     }
-  }, [currentIntake, dailyGoal, history, saveData]);
+  }, [currentIntake, dailyGoal, history, setLocalData, syncToDrive]);
   
-  return { currentIntake, dailyGoal, addWater, streak, history, todaysLogs };
+  return { currentIntake, dailyGoal, addWater, streak, history, todaysLogs, isSyncing };
 };
 
 export default useWaterData;

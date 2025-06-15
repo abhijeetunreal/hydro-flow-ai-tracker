@@ -1,57 +1,89 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { CredentialResponse } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
+import { googleLogout, TokenResponse } from '@react-oauth/google';
 
 interface UserProfile {
   name: string;
   email: string;
   picture: string;
-  exp: number;
 }
 
 interface AuthContextType {
   user: UserProfile | null;
-  login: (credentialResponse: CredentialResponse) => void;
+  accessToken: string | null;
+  login: (tokenResponse: Omit<TokenResponse, "error" | "error_description" | "error_uri">) => Promise<void>;
   logout: () => void;
+  isLoggingIn: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const USER_STORAGE_KEY = 'aquaTrackUser';
+const AUTH_STORAGE_KEY = 'aquaTrackAuthV2';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<UserProfile | null>(() => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(true);
+
+  useEffect(() => {
     try {
-      const storedUser = localStorage.getItem(USER_STORAGE_KEY);
-      if (storedUser) {
-        const parsedUser: UserProfile = JSON.parse(storedUser);
-        // Check if token is expired
-        if (parsedUser.exp * 1000 > Date.now()) {
-          return parsedUser;
+      const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (storedAuth) {
+        const { user, accessToken, expiresAt } = JSON.parse(storedAuth);
+        if (expiresAt > Date.now()) {
+          setUser(user);
+          setAccessToken(accessToken);
+        } else {
+          localStorage.removeItem(AUTH_STORAGE_KEY);
         }
       }
     } catch (e) {
-      console.error("Failed to parse user from localStorage", e);
+      console.error("Failed to parse auth from localStorage", e);
+    } finally {
+      setIsLoggingIn(false);
     }
-    return null;
-  });
+  }, []);
 
-  const login = (credentialResponse: CredentialResponse) => {
-    if (credentialResponse.credential) {
-      const decoded: UserProfile = jwtDecode(credentialResponse.credential);
-      setUser(decoded);
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(decoded));
+  const login = async (tokenResponse: Omit<TokenResponse, "error" | "error_description" | "error_uri">) => {
+    setIsLoggingIn(true);
+    const gAccessToken = tokenResponse.access_token;
+    try {
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${gAccessToken}` },
+      });
+      if (!response.ok) throw new Error('Failed to fetch user info');
+      
+      const profile: UserProfile = await response.json();
+      
+      const userProfile: UserProfile = {
+        name: profile.name,
+        email: profile.email,
+        picture: profile.picture,
+      };
+
+      setUser(userProfile);
+      setAccessToken(gAccessToken);
+      
+      const expiresAt = Date.now() + (tokenResponse.expires_in * 1000);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user: userProfile, accessToken: gAccessToken, expiresAt }));
+    } catch(error) {
+        console.error("Login failed", error);
+        logout();
+        throw error;
+    } finally {
+        setIsLoggingIn(false);
     }
   };
 
   const logout = () => {
+    googleLogout();
     setUser(null);
-    localStorage.removeItem(USER_STORAGE_KEY);
+    setAccessToken(null);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, accessToken, login, logout, isLoggingIn }}>
       {children}
     </AuthContext.Provider>
   );
