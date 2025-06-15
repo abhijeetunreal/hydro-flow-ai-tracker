@@ -185,7 +185,7 @@ const useWaterData = (user: UserProfile | null) => {
     const newData: StoredData = { history: newHistory, reminders, lastModified: new Date().toISOString() };
     
     setData(newData);
-    syncToDrive(newData);
+    // syncToDrive(newData); // Removed to prevent sync on every log
 
     if (newIntake >= dailyGoal && !wasGoalMetBefore) {
       const newStreak = calculateStreak(newHistory, dailyGoal);
@@ -193,7 +193,7 @@ const useWaterData = (user: UserProfile | null) => {
         description: `You're on a ${newStreak}-day streak!`,
       });
     }
-  }, [currentIntake, dailyGoal, history, reminders, setData, syncToDrive]);
+  }, [currentIntake, dailyGoal, history, reminders, setData]);
   
   const saveReminder = useCallback(async (reminderToSave: ReminderType) => {
     if (!accessToken || !calendarId) {
@@ -224,9 +224,9 @@ const useWaterData = (user: UserProfile | null) => {
     
     const newData: StoredData = { history, reminders: newReminders, lastModified: new Date().toISOString() };
     setData(newData);
-    await syncToDrive(newData);
+    // await syncToDrive(newData); // Removed to prevent sync on every save
     toast.success("Reminder saved!");
-  }, [history, reminders, setData, syncToDrive, accessToken, calendarId]);
+  }, [history, reminders, setData, accessToken, calendarId]);
 
   const deleteReminder = useCallback(async (reminderId: string) => {
     if (!accessToken || !calendarId) {
@@ -242,9 +242,9 @@ const useWaterData = (user: UserProfile | null) => {
     const newReminders = reminders.filter(r => r.id !== reminderId);
     const newData: StoredData = { history, reminders: newReminders, lastModified: new Date().toISOString() };
     setData(newData);
-    await syncToDrive(newData);
+    // await syncToDrive(newData); // Removed to prevent sync on every delete
     toast.info("Reminder deleted.");
-  }, [history, reminders, setData, syncToDrive, accessToken, calendarId]);
+  }, [history, reminders, setData, accessToken, calendarId]);
 
   return { currentIntake, dailyGoal, addWater, streak, history, todaysLogs, isSyncing, reminders, saveReminder, deleteReminder };
 };
