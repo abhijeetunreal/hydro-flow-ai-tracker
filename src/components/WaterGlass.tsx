@@ -10,7 +10,7 @@ const WaterGlass: React.FC<WaterGlassProps> = ({ intake, goal }) => {
   const fillPercentage = Math.min((intake / goal) * 100, 100);
 
   return (
-    <div className="relative w-48 h-72 mx-auto border-4 border-gray-300 rounded-t-xl rounded-b-lg flex items-end justify-center">
+    <div className="relative w-48 h-72 border-4 border-gray-300 rounded-t-xl rounded-b-lg flex items-end justify-center">
       {/* Water */}
       <div
         className="absolute bottom-0 w-full bg-primary transition-all duration-1000 ease-in-out"

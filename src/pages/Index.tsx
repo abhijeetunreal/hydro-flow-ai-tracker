@@ -16,14 +16,19 @@ const Index = () => {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-md mx-auto space-y-6">
+      <div className="w-full max-w-md md:max-w-2xl mx-auto space-y-6">
         <header className="text-center">
           <h1 className="text-3xl font-bold text-foreground">AquaTrack</h1>
           <p className="text-muted-foreground">Stay hydrated, stay healthy.</p>
         </header>
 
         <main className="space-y-6">
-          <WaterGlass intake={currentIntake} goal={dailyGoal} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+            <div className="flex justify-center">
+              <WaterGlass intake={currentIntake} goal={dailyGoal} />
+            </div>
+            <IntakeLog logs={todaysLogs} />
+          </div>
 
           <div className="text-center">
             <p className="font-semibold mb-2 text-lg">Log your intake</p>
@@ -36,8 +41,6 @@ const Index = () => {
             </div>
           </div>
           
-          <IntakeLog logs={todaysLogs} />
-
           <div className="grid grid-cols-1 gap-4">
             <StatsCard title="Daily Goal" value={`${dailyGoal / 1000}L`} Icon={Droplet} />
             <HistoryCalendar history={history} dailyGoal={dailyGoal} streak={streak} />
