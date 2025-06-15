@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { format, subDays, isAfter, parseISO } from 'date-fns';
@@ -184,7 +185,6 @@ const useWaterData = (user: UserProfile | null) => {
                 new Notification('💧 Time to hydrate!', {
                     body: reminder.label,
                     icon: '/favicon.ico',
-                    renotify: true,
                     tag: 'aqua-track-reminder'
                 });
 
