@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Bell } from 'lucide-react';
+import { Bell, Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Sheet,
@@ -9,6 +9,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
   SheetFooter,
   SheetClose,
 } from '@/components/ui/sheet';
@@ -22,7 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const REMINDER_KEY = 'hydration-reminder';
+const REMINDER_KEY = 'hydration-reminders';
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const DAYS_OF_WEEK = [
   { label: 'Mo', value: 1 },
@@ -34,166 +35,195 @@ const DAYS_OF_WEEK = [
   { label: 'Su', value: 0 },
 ];
 
+export interface ReminderType {
+  id: string;
+  time: string;
+  repeat: 'once' | 'daily' | 'custom';
+  days: number[];
+  label: string;
+  enabled: boolean;
+}
+
+const defaultReminderValues: Omit<ReminderType, 'id'> = {
+  time: '09:00',
+  repeat: 'daily',
+  days: [],
+  label: 'Drink Water',
+  enabled: true,
+};
+
 const Reminder = () => {
+  const [reminders, setReminders] = useState<ReminderType[]>([]);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [activeReminder, setActiveReminder] = useState<{ time: string; repeat: string; days: number[] } | null>(null);
-  const activeTimeout = useRef<NodeJS.Timeout | null>(null);
-  const initialLoad = useRef(true);
+  const [editingReminder, setEditingReminder] = useState<ReminderType | null>(null);
+  const notificationTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Form state
-  const [reminderTime, setReminderTime] = useState('09:00');
-  const [repeat, setRepeat] = useState('daily');
-  const [customDays, setCustomDays] = useState<string[]>([]);
-
-  const scheduleNextNotification = (reminder: { time: string; repeat: string; days: number[] }) => {
-    if (activeTimeout.current) {
-      clearTimeout(activeTimeout.current);
+  const scheduleNextNotification = (remindersToSchedule: ReminderType[]) => {
+    if (notificationTimeout.current) {
+      clearTimeout(notificationTimeout.current);
     }
     if (!("Notification" in window)) return;
 
-    const getNextReminderDate = (): Date | null => {
-      const now = new Date();
-      const [hours, minutes] = reminder.time.split(':').map(Number);
+    let nextNotification: { date: Date; reminder: ReminderType } | null = null;
 
+    const enabledReminders = remindersToSchedule.filter(r => r.enabled);
+
+    for (const reminder of enabledReminders) {
+      const [hours, minutes] = reminder.time.split(':').map(Number);
+      
       for (let i = 0; i < 8; i++) {
         const checkDate = new Date();
-        checkDate.setDate(now.getDate() + i);
+        checkDate.setDate(new Date().getDate() + i);
         checkDate.setHours(hours, minutes, 0, 0);
 
-        if (checkDate <= now) continue;
+        if (checkDate <= new Date()) continue;
 
+        let isValid = false;
         if (reminder.repeat === 'daily') {
-          return checkDate;
-        }
-        
-        if (reminder.repeat === 'once') {
-          if (i < 2) return checkDate; // Only check today and tomorrow for 'once'
-        }
-        
-        if (reminder.repeat === 'custom' && reminder.days.length > 0) {
+          isValid = true;
+        } else if (reminder.repeat === 'once') {
+           if (i < 2) isValid = true;
+        } else if (reminder.repeat === 'custom' && reminder.days.length > 0) {
           if (reminder.days.includes(checkDate.getDay())) {
-            return checkDate;
+            isValid = true;
           }
         }
+        
+        if (isValid) {
+          if (!nextNotification || checkDate < nextNotification.date) {
+            nextNotification = { date: checkDate, reminder };
+          }
+          break; 
+        }
       }
-      return null;
-    };
+    }
 
-    const nextReminderDate = getNextReminderDate();
-
-    if (nextReminderDate) {
-      const timeToReminder = nextReminderDate.getTime() - new Date().getTime();
-      activeTimeout.current = setTimeout(() => {
-        new Notification("💧 Time to Hydrate!", {
+    if (nextNotification) {
+      const timeToNotification = nextNotification.date.getTime() - new Date().getTime();
+      notificationTimeout.current = setTimeout(() => {
+        new Notification(`💧 ${nextNotification.reminder.label || 'Time to Hydrate!'}`, {
           body: "Don't forget to drink some water.",
           icon: '/favicon.ico',
         });
-        if (reminder.repeat !== 'once') {
-          scheduleNextNotification(reminder);
-        } else {
-            handleCancelReminder(false);
+        
+        const newReminders = [...reminders];
+        if (nextNotification.reminder.repeat === 'once') {
+            const reminderIndex = newReminders.findIndex(r => r.id === nextNotification.reminder.id);
+            if(reminderIndex !== -1) {
+                newReminders[reminderIndex].enabled = false;
+            }
         }
-      }, timeToReminder);
+        
+        // This will trigger a re-schedule via useEffect
+        setReminders(newReminders);
+      }, timeToNotification);
     }
   };
 
   useEffect(() => {
-    if (initialLoad.current && typeof window !== 'undefined') {
-      const savedReminder = localStorage.getItem(REMINDER_KEY);
-      if (savedReminder) {
+    const savedReminders = localStorage.getItem(REMINDER_KEY);
+    if (savedReminders) {
         try {
-            const parsed = JSON.parse(savedReminder);
-            setActiveReminder(parsed);
-            scheduleNextNotification(parsed);
+            setReminders(JSON.parse(savedReminders));
         } catch (e) {
-            console.error("Failed to parse reminder from localStorage", e);
+            console.error("Failed to parse reminders from localStorage", e);
             localStorage.removeItem(REMINDER_KEY);
         }
-      }
-      initialLoad.current = false;
-    }
-    return () => {
-        if (activeTimeout.current) clearTimeout(activeTimeout.current);
     }
   }, []);
 
-  const handleSetReminder = () => {
-    if (!reminderTime) {
+  useEffect(() => {
+    localStorage.setItem(REMINDER_KEY, JSON.stringify(reminders));
+    scheduleNextNotification(reminders);
+
+    return () => {
+      if (notificationTimeout.current) {
+        clearTimeout(notificationTimeout.current);
+      }
+    };
+  }, [reminders]);
+
+
+  const requestNotificationPermission = (callback: () => void) => {
+    if (!("Notification" in window)) {
+        toast.error("This browser does not support desktop notification.");
+        return;
+    }
+    if (Notification.permission === "granted") {
+        callback();
+    } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then((permission) => {
+            if (permission === "granted") {
+                callback();
+            } else {
+                toast.warning("Notification permission denied. Cannot set reminder.");
+            }
+        });
+    } else {
+        toast.warning("Permissions denied. Please enable notifications in browser settings.");
+    }
+  }
+  
+  const handleSaveReminder = () => {
+    if (!editingReminder) return;
+    if (!editingReminder.time) {
       toast.error("Please select a time for the reminder.");
       return;
     }
-    if (repeat === 'custom' && customDays.length === 0) {
+    if (editingReminder.repeat === 'custom' && editingReminder.days.length === 0) {
       toast.error("Please select at least one day for custom reminders.");
       return;
     }
 
-    const newReminder = {
-      time: reminderTime,
-      repeat,
-      days: customDays.map(Number),
-    };
-    
-    const requestNotificationPermission = (callback: () => void) => {
-        if (!("Notification" in window)) {
-            toast.error("This browser does not support desktop notification.");
-            return;
-        }
-        if (Notification.permission === "granted") {
-            callback();
-        } else if (Notification.permission !== "denied") {
-            Notification.requestPermission().then((permission) => {
-                if (permission === "granted") {
-                    callback();
-                } else {
-                    toast.warning("Notification permission denied. Cannot set reminder.");
-                }
-            });
-        } else {
-            toast.warning("Permissions denied. Please enable notifications in browser settings.");
-        }
-    }
-
     requestNotificationPermission(() => {
-        localStorage.setItem(REMINDER_KEY, JSON.stringify(newReminder));
-        setActiveReminder(newReminder);
-        scheduleNextNotification(newReminder);
-        toast.success("Reminder has been saved successfully!");
-        setIsSheetOpen(false);
+      const isEditing = reminders.some(r => r.id === editingReminder.id);
+      let newReminders;
+      if (isEditing) {
+        newReminders = reminders.map(r => r.id === editingReminder.id ? editingReminder : r);
+      } else {
+        newReminders = [...reminders, editingReminder];
+      }
+      setReminders(newReminders);
+      toast.success("Reminder has been saved successfully!");
+      setIsSheetOpen(false);
+      setEditingReminder(null);
     });
   };
 
-  const handleCancelReminder = (showToast = true) => {
-    if (activeTimeout.current) {
-      clearTimeout(activeTimeout.current);
-    }
-    localStorage.removeItem(REMINDER_KEY);
-    setActiveReminder(null);
-    if(showToast) toast.info("Reminder cancelled.");
+  const handleDeleteReminder = (id: string) => {
+    setReminders(reminders.filter(r => r.id !== id));
+    toast.info("Reminder deleted.");
     setIsSheetOpen(false);
+    setEditingReminder(null);
   };
   
   const handleDayToggle = (dayValue: string) => {
-    setCustomDays(prev => 
-        prev.includes(dayValue) ? prev.filter(d => d !== dayValue) : [...prev, dayValue]
-    );
+    if (!editingReminder) return;
+    const dayNum = Number(dayValue);
+    const newDays = editingReminder.days.includes(dayNum) 
+        ? editingReminder.days.filter(d => d !== dayNum) 
+        : [...editingReminder.days, dayNum];
+    setEditingReminder({ ...editingReminder, days: newDays });
   };
-
-  const openSheet = () => {
-    if (activeReminder) {
-      setReminderTime(activeReminder.time);
-      setRepeat(activeReminder.repeat);
-      setCustomDays(activeReminder.days.map(String));
-    } else {
-      // Reset to default when setting a new reminder
-      setReminderTime('09:00');
-      setRepeat('daily');
-      setCustomDays([]);
-    }
+  
+  const handleOpenNew = () => {
+    setEditingReminder({
+      id: `reminder-${Date.now()}`,
+      ...defaultReminderValues
+    });
+    setIsSheetOpen(true);
+  }
+  
+  const handleOpenEdit = (reminder: ReminderType) => {
+    setEditingReminder({ ...reminder });
     setIsSheetOpen(true);
   }
 
-  const formatReminderText = (reminder: { time: string; repeat: string; days: number[] }) => {
-    if (!reminder.time) return 'Set a Reminder';
+  const handleToggleEnable = (id: string) => {
+    setReminders(reminders.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
+  };
+  
+  const formatReminderText = (reminder: ReminderType) => {
     const d = new Date(`1970-01-01T${reminder.time}`);
     const timeString = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -202,77 +232,121 @@ const Reminder = () => {
         case 'once': return `Once at ${timeString}`;
         case 'custom':
             const dayStr = reminder.days.sort((a, b) => a - b).map(d => WEEK_DAYS[d]).join(', ');
-            return `${dayStr} at ${timeString}`;
+            return `${dayStr.length > 0 ? dayStr : 'No days selected'} at ${timeString}`;
         default: return `Reminder set`;
     }
   }
 
   return (
-    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-      <SheetTrigger asChild>
-        <Button variant="outline" className="w-full" onClick={openSheet}>
-          <Bell className="mr-2 h-4 w-4" />
-          {activeReminder ? formatReminderText(activeReminder) : 'Set a Reminder'}
-        </Button>
-      </SheetTrigger>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>{activeReminder ? 'Edit Reminder' : 'Set Hydration Reminder'}</SheetTitle>
-          <SheetDescription>
-            Choose a time and how often you want to be reminded.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="grid gap-6 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="reminder-time" className="text-right">Time</Label>
-            <Input id="reminder-time" type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} className="col-span-3" />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="repeat-select" className="text-right">Repeat</Label>
-            <Select value={repeat} onValueChange={setRepeat}>
-                <SelectTrigger id="repeat-select" className="col-span-3">
-                    <SelectValue placeholder="Select repeat interval" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="once">Once</SelectItem>
-                    <SelectItem value="daily">Every Day</SelectItem>
-                    <SelectItem value="custom">Custom Days</SelectItem>
-                </SelectContent>
-            </Select>
-          </div>
-          {repeat === 'custom' && (
-            <div className="grid grid-cols-4 items-start gap-4">
-              <Label className="text-right pt-2">Days</Label>
-               <div className="col-span-3 flex flex-wrap gap-1">
-                {DAYS_OF_WEEK.map((day) => (
-                  <Button
-                      key={day.value}
-                      variant={customDays.includes(String(day.value)) ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleDayToggle(String(day.value))}
-                      className="h-8 w-8 p-0"
-                  >
-                      {day.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
+    <div className="w-full">
+      <Sheet open={isSheetOpen} onOpenChange={(open) => {
+        if (!open) setEditingReminder(null);
+        setIsSheetOpen(open);
+      }}>
+        <SheetContent>
+            {editingReminder && (
+            <>
+                <SheetHeader>
+                  <SheetTitle>{reminders.some(r => r.id === editingReminder.id) ? 'Edit Reminder' : 'Set Hydration Reminder'}</SheetTitle>
+                  <SheetDescription>
+                    Choose a time and how often you want to be reminded.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="grid gap-6 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="reminder-label" className="text-right">Label</Label>
+                      <Input id="reminder-label" value={editingReminder.label} onChange={(e) => setEditingReminder({...editingReminder, label: e.target.value})} className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="reminder-time" className="text-right">Time</Label>
+                    <Input id="reminder-time" type="time" value={editingReminder.time} onChange={(e) => setEditingReminder({...editingReminder, time: e.target.value})} className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="repeat-select" className="text-right">Repeat</Label>
+                    <Select value={editingReminder.repeat} onValueChange={(val: ReminderType['repeat']) => setEditingReminder({...editingReminder, repeat: val})}>
+                        <SelectTrigger id="repeat-select" className="col-span-3">
+                            <SelectValue placeholder="Select repeat interval" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="once">Once</SelectItem>
+                            <SelectItem value="daily">Every Day</SelectItem>
+                            <SelectItem value="custom">Custom Days</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  </div>
+                  {editingReminder.repeat === 'custom' && (
+                    <div className="grid grid-cols-4 items-start gap-4">
+                      <Label className="text-right pt-2">Days</Label>
+                       <div className="col-span-3 flex flex-wrap gap-1">
+                        {DAYS_OF_WEEK.map((day) => (
+                          <Button
+                              key={day.value}
+                              variant={editingReminder.days.includes(day.value) ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => handleDayToggle(String(day.value))}
+                              className="h-8 w-8 p-0"
+                          >
+                              {day.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <SheetFooter className="pt-4">
+                  <div className="flex w-full justify-between">
+                    {reminders.some(r => r.id === editingReminder.id) ? 
+                        <Button type="button" variant="destructive" onClick={() => handleDeleteReminder(editingReminder.id)}><Trash2 className="mr-2 h-4 w-4"/> Delete</Button> : <div />}
+                    <div className="flex gap-2">
+                        <SheetClose asChild>
+                            <Button type="button" variant="secondary">Cancel</Button>
+                        </SheetClose>
+                        <Button type="submit" onClick={handleSaveReminder}>Save</Button>
+                    </div>
+                  </div>
+                </SheetFooter>
+            </>
+            )}
+        </SheetContent>
+      </Sheet>
+
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold flex items-center"><Bell className="mr-2 h-5 w-5"/> Reminders</h3>
+            <Button onClick={handleOpenNew} size="sm"><Plus className="mr-2 h-4 w-4"/> Add New</Button>
         </div>
-        <SheetFooter className="pt-4">
-          <div className="flex w-full justify-between">
-            {activeReminder ? 
-                <Button type="button" variant="destructive" onClick={() => handleCancelReminder()}>Delete</Button> : <div />}
-            <div className="flex gap-2">
-                <SheetClose asChild>
-                    <Button type="button" variant="secondary">Cancel</Button>
-                </SheetClose>
-                <Button type="submit" onClick={handleSetReminder}>Save</Button>
+        {reminders.length > 0 ? (
+            <div className="space-y-2">
+                {reminders.map(reminder => (
+                    <div key={reminder.id} className="flex items-center justify-between p-3 rounded-lg border bg-card text-card-foreground">
+                        <div className="flex items-center gap-4">
+                            <Button
+                                size="sm"
+                                variant={reminder.enabled ? 'default' : 'secondary'}
+                                onClick={() => handleToggleEnable(reminder.id)}
+                                className="w-20"
+                            >
+                                {reminder.enabled ? 'Enabled' : 'Disabled'}
+                            </Button>
+                            <div>
+                                <p className="font-semibold">{reminder.label}</p>
+                                <p className="text-sm text-muted-foreground">{formatReminderText(reminder)}</p>
+                            </div>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(reminder)}>
+                            <Edit className="h-4 w-4"/>
+                        </Button>
+                    </div>
+                ))}
             </div>
-          </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        ) : (
+            <div className="text-center text-muted-foreground py-8 border-2 border-dashed rounded-lg">
+                <p>No reminders set.</p>
+                <Button variant="link" onClick={handleOpenNew}>Create your first reminder</Button>
+            </div>
+        )}
+      </div>
+    </div>
   );
 };
 
