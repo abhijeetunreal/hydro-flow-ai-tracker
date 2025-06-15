@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { format, subDays, isAfter, parseISO } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import * as driveService from '@/services/driveService';
+import * as calendarService from '@/services/calendarService';
 import { ReminderType } from '@/components/Reminder';
 
 const BASE_STORAGE_KEY = 'aquaTrackHistoryV3';
@@ -65,6 +66,7 @@ const useWaterData = (user: UserProfile | null) => {
   const [reminders, setReminders] = useState<ReminderType[]>([]);
   const [lastModified, setLastModified] = useState<string | null>(null);
   const [driveFile, setDriveFile] = useState<driveService.DriveFile | null>(null);
+  const [calendarId, setCalendarId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const storageKey = useMemo(() => {
@@ -113,32 +115,45 @@ const useWaterData = (user: UserProfile | null) => {
 
     const initialSync = async () => {
       setIsSyncing(true);
-      const remoteFile = await driveService.findDataFile(accessToken);
-      const localData = getLocalData();
       
+      const remoteFile = await driveService.findDataFile(accessToken);
+      let dataToSet: StoredData | null = null;
+      let syncLocalToRemote = false;
+
       if (remoteFile) {
         setDriveFile(remoteFile);
         const remoteData = await driveService.readFileContent(accessToken, remoteFile.id);
-        
         if (remoteData) {
-            if (!localData || isAfter(parseISO(remoteData.lastModified), parseISO(localData.lastModified))) {
-              setData(remoteData);
-            } else if (isAfter(parseISO(localData.lastModified), parseISO(remoteData.lastModified))) {
-              await syncToDrive(localData);
-            } else {
-              setData(localData);
-            }
-        } else if (localData) {
-            await syncToDrive(localData);
+          dataToSet = remoteData;
         }
+      }
 
-      } else if (localData) {
-        await syncToDrive(localData);
+      if (!dataToSet) {
+        const localData = getLocalData();
+        if (localData) {
+          dataToSet = localData;
+          syncLocalToRemote = true;
+        }
+      }
+      
+      if (dataToSet) {
+        setData(dataToSet);
+        if (syncLocalToRemote) {
+          await syncToDrive(dataToSet);
+        }
       } else {
         const initialData: StoredData = { history: {}, reminders: [], lastModified: new Date().toISOString() };
         setData(initialData);
         await syncToDrive(initialData);
       }
+
+      const calId = await calendarService.findOrCreateCalendar(accessToken);
+      if (calId) {
+        setCalendarId(calId);
+      } else {
+        toast.error("Could not connect to Google Calendar. Reminders will not work.");
+      }
+      
       setIsSyncing(false);
     };
 
@@ -180,28 +195,56 @@ const useWaterData = (user: UserProfile | null) => {
     }
   }, [currentIntake, dailyGoal, history, reminders, setData, syncToDrive]);
   
-  const saveReminder = useCallback((reminderToSave: ReminderType) => {
-    const isEditing = reminders.some(r => r.id === reminderToSave.id);
-    let newReminders;
-    if (isEditing) {
-      newReminders = reminders.map(r => r.id === reminderToSave.id ? reminderToSave : r);
-    } else {
-      newReminders = [...reminders, reminderToSave];
+  const saveReminder = useCallback(async (reminderToSave: ReminderType) => {
+    if (!accessToken || !calendarId) {
+      toast.error("Cannot save reminder. Not connected to Google services.");
+      return;
     }
+    
+    const isEditing = reminders.some(r => r.id === reminderToSave.id);
+    
+    const existingReminder = reminders.find(r => r.id === reminderToSave.id);
+    if (existingReminder?.eventId) {
+      await calendarService.deleteCalendarEvent(accessToken, calendarId, existingReminder.eventId);
+    }
+    
+    let newEventId: string | null = null;
+    if (reminderToSave.enabled) {
+      newEventId = await calendarService.createCalendarEvent(accessToken, calendarId, reminderToSave);
+      if (!newEventId) {
+        toast.error("Failed to create reminder in Google Calendar.");
+      }
+    }
+    
+    const finalReminder = { ...reminderToSave, eventId: newEventId || undefined };
+
+    const newReminders = isEditing 
+      ? reminders.map(r => r.id === finalReminder.id ? finalReminder : r)
+      : [...reminders, finalReminder];
     
     const newData: StoredData = { history, reminders: newReminders, lastModified: new Date().toISOString() };
     setData(newData);
-    syncToDrive(newData);
+    await syncToDrive(newData);
     toast.success("Reminder saved!");
-  }, [history, reminders, setData, syncToDrive]);
+  }, [history, reminders, setData, syncToDrive, accessToken, calendarId]);
 
-  const deleteReminder = useCallback((reminderId: string) => {
+  const deleteReminder = useCallback(async (reminderId: string) => {
+    if (!accessToken || !calendarId) {
+      toast.error("Cannot delete reminder. Not connected to Google services.");
+      return;
+    }
+    
+    const reminderToDelete = reminders.find(r => r.id === reminderId);
+    if (reminderToDelete?.eventId) {
+      await calendarService.deleteCalendarEvent(accessToken, calendarId, reminderToDelete.eventId);
+    }
+
     const newReminders = reminders.filter(r => r.id !== reminderId);
     const newData: StoredData = { history, reminders: newReminders, lastModified: new Date().toISOString() };
     setData(newData);
-    syncToDrive(newData);
+    await syncToDrive(newData);
     toast.info("Reminder deleted.");
-  }, [history, reminders, setData, syncToDrive]);
+  }, [history, reminders, setData, syncToDrive, accessToken, calendarId]);
 
   return { currentIntake, dailyGoal, addWater, streak, history, todaysLogs, isSyncing, reminders, saveReminder, deleteReminder };
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bell, Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -35,6 +35,7 @@ const DAYS_OF_WEEK = [
 
 export interface ReminderType {
   id: string;
+  eventId?: string; // Google Calendar Event ID
   time: string;
   repeat: 'once' | 'daily' | 'custom';
   days: number[];
@@ -59,100 +60,7 @@ interface ReminderProps {
 const Reminder: React.FC<ReminderProps> = ({ reminders, saveReminder, deleteReminder }) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<ReminderType | null>(null);
-  const notificationTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const scheduleNextNotification = (remindersToSchedule: ReminderType[]) => {
-    if (notificationTimeout.current) {
-      clearTimeout(notificationTimeout.current);
-    }
-    if (!("Notification" in window) || !remindersToSchedule) return;
-
-    let nextNotification: { date: Date; reminder: ReminderType } | null = null;
-
-    const enabledReminders = remindersToSchedule.filter(r => r.enabled);
-
-    for (const reminder of enabledReminders) {
-      const [hours, minutes] = reminder.time.split(':').map(Number);
-      
-      for (let i = 0; i < 8; i++) {
-        const checkDate = new Date();
-        checkDate.setDate(new Date().getDate() + i);
-        checkDate.setHours(hours, minutes, 0, 0);
-
-        if (checkDate <= new Date()) continue;
-
-        let isValid = false;
-        if (reminder.repeat === 'daily') {
-          isValid = true;
-        } else if (reminder.repeat === 'once') {
-           if (i < 2) isValid = true;
-        } else if (reminder.repeat === 'custom' && reminder.days.length > 0) {
-          if (reminder.days.includes(checkDate.getDay())) {
-            isValid = true;
-          }
-        }
-        
-        if (isValid) {
-          if (!nextNotification || checkDate < nextNotification.date) {
-            nextNotification = { date: checkDate, reminder };
-          }
-          break; 
-        }
-      }
-    }
-
-    if (nextNotification) {
-      const timeToNotification = nextNotification.date.getTime() - new Date().getTime();
-      notificationTimeout.current = setTimeout(() => {
-        new Notification(`💧 ${nextNotification.reminder.label || 'Time to Hydrate!'}`, {
-          body: "Don't forget to drink some water.",
-          icon: '/favicon.ico',
-        });
-        
-        if (nextNotification.reminder.repeat === 'once') {
-            const reminderToDisable = reminders.find(r => r.id === nextNotification.reminder.id);
-            if(reminderToDisable) {
-                saveReminder({...reminderToDisable, enabled: false});
-            }
-        } else {
-            // Re-schedule for next day/time
-            scheduleNextNotification(reminders);
-        }
-
-      }, timeToNotification);
-    }
-  };
-
-  useEffect(() => {
-    scheduleNextNotification(reminders);
-
-    return () => {
-      if (notificationTimeout.current) {
-        clearTimeout(notificationTimeout.current);
-      }
-    };
-  }, [reminders]);
-
-  const requestNotificationPermission = (callback: () => void) => {
-    if (!("Notification" in window)) {
-        toast.error("This browser does not support desktop notification.");
-        return;
-    }
-    if (Notification.permission === "granted") {
-        callback();
-    } else if (Notification.permission !== "denied") {
-        Notification.requestPermission().then((permission) => {
-            if (permission === "granted") {
-                callback();
-            } else {
-                toast.warning("Notification permission denied. Cannot set reminder.");
-            }
-        });
-    } else {
-        toast.warning("Permissions denied. Please enable notifications in browser settings.");
-    }
-  }
-  
   const handleSaveReminder = () => {
     if (!editingReminder) return;
     if (!editingReminder.time) {
@@ -164,11 +72,9 @@ const Reminder: React.FC<ReminderProps> = ({ reminders, saveReminder, deleteRemi
       return;
     }
 
-    requestNotificationPermission(() => {
-      saveReminder(editingReminder);
-      setIsSheetOpen(false);
-      setEditingReminder(null);
-    });
+    saveReminder(editingReminder);
+    setIsSheetOpen(false);
+    setEditingReminder(null);
   };
 
   const handleDelete = (id: string) => {
@@ -202,7 +108,7 @@ const Reminder: React.FC<ReminderProps> = ({ reminders, saveReminder, deleteRemi
   const handleToggleEnable = (id: string) => {
     const reminder = reminders.find(r => r.id === id);
     if(reminder) {
-        saveReminder({ ...reminder, enabled: !r.enabled });
+        saveReminder({ ...reminder, enabled: !reminder.enabled });
     }
   };
   
@@ -232,7 +138,7 @@ const Reminder: React.FC<ReminderProps> = ({ reminders, saveReminder, deleteRemi
                 <SheetHeader>
                   <SheetTitle>{reminders.some(r => r.id === editingReminder.id) ? 'Edit Reminder' : 'Set Hydration Reminder'}</SheetTitle>
                   <SheetDescription>
-                    Choose a time and how often you want to be reminded.
+                    Reminders will be created in your Google Calendar.
                   </SheetDescription>
                 </SheetHeader>
                 <div className="grid gap-6 py-4">

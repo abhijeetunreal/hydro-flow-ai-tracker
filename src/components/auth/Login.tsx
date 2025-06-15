@@ -1,3 +1,4 @@
+
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
@@ -26,7 +27,7 @@ const Login = () => {
     onError: () => {
       toast.error('Google Sign-In failed. Please try again.');
     },
-    scope: 'openid email profile https://www.googleapis.com/auth/drive.appdata',
+    scope: 'openid email profile https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.events',
   });
 
   return (
