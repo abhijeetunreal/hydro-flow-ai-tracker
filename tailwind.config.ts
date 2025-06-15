@@ -83,14 +83,20 @@ export default {
           to: {
             height: '100%'
           }
+        },
+        'bubble-rise': {
+          '0%': { transform: 'translateY(0) scale(1)', opacity: '0.7' },
+          '100%': { transform: 'translateY(-250px) scale(1.5)', opacity: '0' },
         }
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-        'fill-up': 'fill-up 1s ease-out'
+        'fill-up': 'fill-up 1s ease-out',
+        'bubble-rise': 'bubble-rise 4s ease-in-out infinite'
 			}
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
 } satisfies Config;
+

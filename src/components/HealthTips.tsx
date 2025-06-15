@@ -20,7 +20,7 @@ const HealthTips = () => {
     toast.loading("Getting a new tip from AI...");
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -35,6 +35,8 @@ const HealthTips = () => {
       });
 
       if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API Error Response:", errorData);
         throw new Error(`API error: ${response.statusText}`);
       }
 

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -22,26 +23,6 @@ const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ history, dailyGoal, s
     end: today,
   });
 
-  const getIntensity = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    if (!history[dateStr]) return 0;
-    const intake = history[dateStr].reduce((sum, log) => sum + log.amount, 0);
-    if (intake === 0) return 0;
-    if (intake >= dailyGoal) return 4;
-    const percentage = intake / dailyGoal;
-    if (percentage > 0.66) return 3;
-    if (percentage > 0.33) return 2;
-    return 1;
-  };
-
-  const intensityClasses = [
-    'bg-muted/30', // 0
-    'bg-primary/20', // 1
-    'bg-primary/40', // 2
-    'bg-primary/70', // 3
-    'bg-primary',    // 4 (goal met)
-  ];
-
   const weekDays = ['Mon', 'Wed', 'Fri'];
 
   return (
@@ -58,12 +39,18 @@ const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ history, dailyGoal, s
         </div>
         <div className="grid grid-rows-7 grid-flow-col gap-1 w-full">
           {dateRange.map((date, index) => {
-            const intensity = getIntensity(date);
-            const intake = history[format(date, 'yyyy-MM-dd')]?.reduce((sum, log) => sum + log.amount, 0) || 0;
+            const dateStr = format(date, 'yyyy-MM-dd');
+            const intake = history[dateStr]?.reduce((sum, log) => sum + log.amount, 0) || 0;
+            const percentage = Math.min(intake / dailyGoal, 1);
+            
+            const style = intake > 0
+              ? { backgroundColor: `hsla(205, 90%, 50%, ${percentage * 0.8 + 0.2})` }
+              : { backgroundColor: 'hsl(var(--muted) / 0.3)' };
+
             return (
               <Tooltip key={index} delayDuration={100}>
                 <TooltipTrigger>
-                  <div className={`w-full aspect-square rounded-sm ${intensityClasses[intensity]}`} />
+                  <div className={`w-full aspect-square rounded-sm`} style={style} />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{format(date, 'MMM d, yyyy')}: {intake}ml</p>
@@ -78,3 +65,4 @@ const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ history, dailyGoal, s
 };
 
 export default HistoryCalendar;
+
