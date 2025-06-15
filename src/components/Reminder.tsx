@@ -1,5 +1,4 @@
 
-```typescript
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
@@ -10,7 +9,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
   SheetFooter,
   SheetClose,
 } from '@/components/ui/sheet';
@@ -203,7 +201,7 @@ const Reminder = () => {
         case 'daily': return `Daily at ${timeString}`;
         case 'once': return `Once at ${timeString}`;
         case 'custom':
-            const dayStr = reminder.days.sort().map(d => WEEK_DAYS[d]).join(', ');
+            const dayStr = reminder.days.sort((a, b) => a - b).map(d => WEEK_DAYS[d]).join(', ');
             return `${dayStr} at ${timeString}`;
         default: return `Reminder set`;
     }
@@ -279,4 +277,3 @@ const Reminder = () => {
 };
 
 export default Reminder;
-```
