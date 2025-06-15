@@ -25,7 +25,7 @@ const Index = () => {
         <main className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
             <div className="flex justify-center">
-              <WaterGlass intake={currentIntake} goal={dailyGoal} />
+              <WaterGlass intake={currentIntake} goal={dailyGoal} logs={todaysLogs} />
             </div>
             <IntakeLog logs={todaysLogs} />
           </div>

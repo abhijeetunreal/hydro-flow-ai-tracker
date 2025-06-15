@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -57,7 +56,7 @@ const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ history, dailyGoal, s
         <div className="flex flex-col justify-between text-xs text-muted-foreground pt-4">
           {weekDays.map(day => <span key={day}>{day}</span>)}
         </div>
-        <div className="grid grid-cols-16 grid-flow-col gap-1 w-full">
+        <div className="grid grid-rows-7 grid-flow-col gap-1 w-full">
           {dateRange.map((date, index) => {
             const intensity = getIntensity(date);
             const intake = history[format(date, 'yyyy-MM-dd')]?.reduce((sum, log) => sum + log.amount, 0) || 0;
