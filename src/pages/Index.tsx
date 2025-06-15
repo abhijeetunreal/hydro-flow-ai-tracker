@@ -6,7 +6,6 @@ import StatsCard from "@/components/StatsCard";
 import HealthTips from "@/components/HealthTips";
 import Reminder from "@/components/Reminder";
 import HistoryCalendar from "@/components/HistoryCalendar";
-import IntakeLog from "@/components/IntakeLog";
 import { Droplet } from "lucide-react";
 
 const Index = () => {
@@ -23,11 +22,8 @@ const Index = () => {
         </header>
 
         <main className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            <div className="flex justify-center">
-              <WaterGlass intake={currentIntake} goal={dailyGoal} logs={todaysLogs} />
-            </div>
-            <IntakeLog logs={todaysLogs} />
+          <div className="flex justify-center py-8">
+            <WaterGlass intake={currentIntake} goal={dailyGoal} logs={todaysLogs} />
           </div>
 
           <div className="text-center">
