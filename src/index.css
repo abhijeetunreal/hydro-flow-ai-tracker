@@ -1,5 +1,5 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,33 +7,33 @@
 
 @layer base {
   :root {
-    --background: 220 40% 5%; /* Deep dark blue */
-    --foreground: 210 40% 98%; /* Light blueish white */
+    --background: 220 20% 98%; /* Almost white with a blue tint */
+    --foreground: 224 71% 15%; /* Dark slate blue */
 
-    --card: 217 32% 17%;
-    --card-foreground: 210 40% 98%;
+    --card: 255 100% 100%;
+    --card-foreground: 224 71% 15%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 255 100% 100%;
+    --popover-foreground: 224 71% 15%;
 
-    --primary: 190 90% 50%; /* Electric Cyan */
-    --primary-foreground: 220 40% 5%;
+    --primary: 205 90% 45%; /* Crystal Blue */
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 14% 94%; /* Light gray */
+    --secondary-foreground: 224 71% 15%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 220 9% 65%; /* Muted gray */
+    --muted-foreground: 220 9% 45%;
 
-    --accent: 190 90% 60%; /* Brighter Cyan */
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 220 14% 94%;
+    --accent-foreground: 224 71% 15%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 190 90% 50%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 190 90% 60%;
+    --border: 220 13% 90%; /* Light gray border */
+    --input: 220 13% 90%;
+    --ring: 205 90% 55%; /* Brighter Crystal Blue */
 
     --radius: 0.75rem;
   }
@@ -41,21 +41,21 @@
   .dark {
     --background: 220 40% 5%;
     --foreground: 210 40% 98%;
-    --card: 217 32% 17%;
+    --card: 217 32% 12%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 190 90% 50%;
+    --primary: 205 90% 50%;
     --primary-foreground: 220 40% 5%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 190 90% 60%;
+    --accent: 205 90% 60%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 190 90% 50%;
+    --border: 205 90% 30%;
     --input: 217.2 32.6% 17.5%;
     --ring: 205 90% 50%;
   }
@@ -70,27 +70,7 @@
     font-family: 'Inter', sans-serif;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Orbitron', sans-serif;
-  }
-  @supports (font-variation-settings: normal) {
-    body {
-      font-family: 'Inter var', sans-serif;
-    }
-     h1, h2, h3, h4, h5, h6 {
-      font-family: 'Orbitron', sans-serif;
-    }
-  }
-}
-
-@layer utilities {
-  .text-glow {
-    text-shadow: 0 0 8px hsl(var(--primary) / 0.8), 0 0 20px hsl(var(--primary) / 0.5);
-  }
-  
-  .bg-grid {
-    background-image:
-      linear-gradient(hsl(var(--primary) / 0.05) 1px, transparent 1px),
-      linear-gradient(to right, hsl(var(--primary) / 0.05) 1px, transparent 1px);
-    background-size: 2rem 2rem;
+    @apply font-semibold;
+    font-family: 'Inter', sans-serif;
   }
 }

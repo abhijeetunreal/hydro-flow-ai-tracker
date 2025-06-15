@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bell, Plus, Edit, Trash2 } from 'lucide-react';
@@ -23,7 +22,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const REMINDER_KEY = 'hydration-reminders';
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const DAYS_OF_WEEK = [
   { label: 'Mo', value: 1 },
@@ -52,8 +50,13 @@ const defaultReminderValues: Omit<ReminderType, 'id'> = {
   enabled: true,
 };
 
-const Reminder = () => {
-  const [reminders, setReminders] = useState<ReminderType[]>([]);
+interface ReminderProps {
+  reminders: ReminderType[];
+  saveReminder: (reminder: ReminderType) => void;
+  deleteReminder: (id: string) => void;
+}
+
+const Reminder: React.FC<ReminderProps> = ({ reminders, saveReminder, deleteReminder }) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<ReminderType | null>(null);
   const notificationTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -62,7 +65,7 @@ const Reminder = () => {
     if (notificationTimeout.current) {
       clearTimeout(notificationTimeout.current);
     }
-    if (!("Notification" in window)) return;
+    if (!("Notification" in window) || !remindersToSchedule) return;
 
     let nextNotification: { date: Date; reminder: ReminderType } | null = null;
 
@@ -106,34 +109,21 @@ const Reminder = () => {
           icon: '/favicon.ico',
         });
         
-        const newReminders = [...reminders];
         if (nextNotification.reminder.repeat === 'once') {
-            const reminderIndex = newReminders.findIndex(r => r.id === nextNotification.reminder.id);
-            if(reminderIndex !== -1) {
-                newReminders[reminderIndex].enabled = false;
+            const reminderToDisable = reminders.find(r => r.id === nextNotification.reminder.id);
+            if(reminderToDisable) {
+                saveReminder({...reminderToDisable, enabled: false});
             }
+        } else {
+            // Re-schedule for next day/time
+            scheduleNextNotification(reminders);
         }
-        
-        // This will trigger a re-schedule via useEffect
-        setReminders(newReminders);
+
       }, timeToNotification);
     }
   };
 
   useEffect(() => {
-    const savedReminders = localStorage.getItem(REMINDER_KEY);
-    if (savedReminders) {
-        try {
-            setReminders(JSON.parse(savedReminders));
-        } catch (e) {
-            console.error("Failed to parse reminders from localStorage", e);
-            localStorage.removeItem(REMINDER_KEY);
-        }
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(REMINDER_KEY, JSON.stringify(reminders));
     scheduleNextNotification(reminders);
 
     return () => {
@@ -142,7 +132,6 @@ const Reminder = () => {
       }
     };
   }, [reminders]);
-
 
   const requestNotificationPermission = (callback: () => void) => {
     if (!("Notification" in window)) {
@@ -176,23 +165,14 @@ const Reminder = () => {
     }
 
     requestNotificationPermission(() => {
-      const isEditing = reminders.some(r => r.id === editingReminder.id);
-      let newReminders;
-      if (isEditing) {
-        newReminders = reminders.map(r => r.id === editingReminder.id ? editingReminder : r);
-      } else {
-        newReminders = [...reminders, editingReminder];
-      }
-      setReminders(newReminders);
-      toast.success("Reminder has been saved successfully!");
+      saveReminder(editingReminder);
       setIsSheetOpen(false);
       setEditingReminder(null);
     });
   };
 
-  const handleDeleteReminder = (id: string) => {
-    setReminders(reminders.filter(r => r.id !== id));
-    toast.info("Reminder deleted.");
+  const handleDelete = (id: string) => {
+    deleteReminder(id);
     setIsSheetOpen(false);
     setEditingReminder(null);
   };
@@ -220,7 +200,10 @@ const Reminder = () => {
   }
 
   const handleToggleEnable = (id: string) => {
-    setReminders(reminders.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
+    const reminder = reminders.find(r => r.id === id);
+    if(reminder) {
+        saveReminder({ ...reminder, enabled: !r.enabled });
+    }
   };
   
   const formatReminderText = (reminder: ReminderType) => {
@@ -296,7 +279,7 @@ const Reminder = () => {
                 <SheetFooter className="pt-4">
                   <div className="flex w-full justify-between">
                     {reminders.some(r => r.id === editingReminder.id) ? 
-                        <Button type="button" variant="destructive" onClick={() => handleDeleteReminder(editingReminder.id)}><Trash2 className="mr-2 h-4 w-4"/> Delete</Button> : <div />}
+                        <Button type="button" variant="destructive" onClick={() => handleDelete(editingReminder.id)}><Trash2 className="mr-2 h-4 w-4"/> Delete</Button> : <div />}
                     <div className="flex gap-2">
                         <SheetClose asChild>
                             <Button type="button" variant="secondary">Cancel</Button>
@@ -318,7 +301,7 @@ const Reminder = () => {
         {reminders.length > 0 ? (
             <div className="space-y-2">
                 {reminders.map(reminder => (
-                    <div key={reminder.id} className="flex items-center justify-between p-3 rounded-lg border bg-card text-card-foreground">
+                    <div key={reminder.id} className="flex items-center justify-between p-3 rounded-lg border bg-card/50 text-card-foreground">
                         <div className="flex items-center gap-4">
                             <Button
                                 size="sm"

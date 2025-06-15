@@ -1,4 +1,3 @@
-
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
@@ -31,8 +30,10 @@ const Login = () => {
   });
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-background bg-grid relative">
-      <div className="absolute pointer-events-none inset-0 flex items-center justify-center bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-background relative">
+      <div className="absolute -inset-40 z-0 opacity-20 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]">
+         {/* You can add a subtle background pattern here if you want */}
+      </div>
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -40,11 +41,11 @@ const Login = () => {
         className="text-center space-y-6 max-w-sm w-full z-10"
       >
         <div className="flex justify-center items-center gap-3">
-          <Droplet className="h-12 w-12 text-primary text-glow" />
-          <h1 className="text-5xl font-black text-foreground text-glow tracking-tighter">AquaTrack</h1>
+          <Droplet className="h-12 w-12 text-primary" />
+          <h1 className="text-5xl font-black text-foreground tracking-tighter">AquaTrack</h1>
         </div>
         <p className="text-muted-foreground text-lg">
-          Fuel your flow. Sync your hydration.
+          A minimalist approach to hydration.
         </p>
         <motion.div
           className="flex justify-center pt-4"

@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { format, subDays, isAfter, parseISO } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import * as driveService from '@/services/driveService';
+import { ReminderType } from '@/components/Reminder';
 
 const BASE_STORAGE_KEY = 'aquaTrackHistoryV3';
 
@@ -17,6 +18,7 @@ type History = {
 
 type StoredData = {
   history: History;
+  reminders: ReminderType[];
   lastModified: string;
 };
 
@@ -60,6 +62,7 @@ const useWaterData = (user: UserProfile | null) => {
   const { accessToken } = useAuth();
   const dailyGoal = 3000;
   const [history, setHistory] = useState<History>({});
+  const [reminders, setReminders] = useState<ReminderType[]>([]);
   const [lastModified, setLastModified] = useState<string | null>(null);
   const [driveFile, setDriveFile] = useState<driveService.DriveFile | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -74,8 +77,9 @@ const useWaterData = (user: UserProfile | null) => {
     return localData ? JSON.parse(localData) : null;
   }, [storageKey]);
 
-  const setLocalData = useCallback((data: StoredData) => {
+  const setData = useCallback((data: StoredData) => {
     setHistory(data.history);
+    setReminders(data.reminders || []);
     setLastModified(data.lastModified);
     if (storageKey) {
       localStorage.setItem(storageKey, JSON.stringify(data));
@@ -102,6 +106,7 @@ const useWaterData = (user: UserProfile | null) => {
   useEffect(() => {
     if (!accessToken || !storageKey) {
         setHistory({});
+        setReminders([]);
         setLastModified(null);
         return;
     };
@@ -115,30 +120,30 @@ const useWaterData = (user: UserProfile | null) => {
         setDriveFile(remoteFile);
         const remoteData = await driveService.readFileContent(accessToken, remoteFile.id);
         
-        if (!localData || isAfter(parseISO(remoteData.lastModified), parseISO(localData.lastModified))) {
-          // Cloud is newer or no local, use cloud
-          setLocalData(remoteData);
-        } else if (isAfter(parseISO(localData.lastModified), parseISO(remoteData.lastModified))) {
-          // Local is newer, push to cloud
-          await syncToDrive(localData);
-        } else {
-          // They are in sync
-          setLocalData(localData);
+        if (remoteData) {
+            if (!localData || isAfter(parseISO(remoteData.lastModified), parseISO(localData.lastModified))) {
+              setData(remoteData);
+            } else if (isAfter(parseISO(localData.lastModified), parseISO(remoteData.lastModified))) {
+              await syncToDrive(localData);
+            } else {
+              setData(localData);
+            }
+        } else if (localData) {
+            await syncToDrive(localData);
         }
+
       } else if (localData) {
-        // No cloud file, but local exists, push to cloud
         await syncToDrive(localData);
       } else {
-        // First time user, create initial data
-        const initialData = { history: {}, lastModified: new Date().toISOString() };
-        setLocalData(initialData);
+        const initialData: StoredData = { history: {}, reminders: [], lastModified: new Date().toISOString() };
+        setData(initialData);
         await syncToDrive(initialData);
       }
       setIsSyncing(false);
     };
 
     initialSync();
-  }, [accessToken, storageKey, getLocalData, setLocalData, syncToDrive]);
+  }, [accessToken, storageKey, getLocalData, setData, syncToDrive]);
 
   const { currentIntake, todaysLogs, streak } = useMemo(() => {
     const todayStr = getTodayString();
@@ -162,9 +167,9 @@ const useWaterData = (user: UserProfile | null) => {
     const updatedTodaysLogs = [...(history[todayStr] || []), newLog];
     
     const newHistory = { ...history, [todayStr]: updatedTodaysLogs };
-    const newData: StoredData = { history: newHistory, lastModified: new Date().toISOString() };
+    const newData: StoredData = { history: newHistory, reminders, lastModified: new Date().toISOString() };
     
-    setLocalData(newData);
+    setData(newData);
     syncToDrive(newData);
 
     if (newIntake >= dailyGoal && !wasGoalMetBefore) {
@@ -173,9 +178,32 @@ const useWaterData = (user: UserProfile | null) => {
         description: `You're on a ${newStreak}-day streak!`,
       });
     }
-  }, [currentIntake, dailyGoal, history, setLocalData, syncToDrive]);
+  }, [currentIntake, dailyGoal, history, reminders, setData, syncToDrive]);
   
-  return { currentIntake, dailyGoal, addWater, streak, history, todaysLogs, isSyncing };
+  const saveReminder = useCallback((reminderToSave: ReminderType) => {
+    const isEditing = reminders.some(r => r.id === reminderToSave.id);
+    let newReminders;
+    if (isEditing) {
+      newReminders = reminders.map(r => r.id === reminderToSave.id ? reminderToSave : r);
+    } else {
+      newReminders = [...reminders, reminderToSave];
+    }
+    
+    const newData: StoredData = { history, reminders: newReminders, lastModified: new Date().toISOString() };
+    setData(newData);
+    syncToDrive(newData);
+    toast.success("Reminder saved!");
+  }, [history, reminders, setData, syncToDrive]);
+
+  const deleteReminder = useCallback((reminderId: string) => {
+    const newReminders = reminders.filter(r => r.id !== reminderId);
+    const newData: StoredData = { history, reminders: newReminders, lastModified: new Date().toISOString() };
+    setData(newData);
+    syncToDrive(newData);
+    toast.info("Reminder deleted.");
+  }, [history, reminders, setData, syncToDrive]);
+
+  return { currentIntake, dailyGoal, addWater, streak, history, todaysLogs, isSyncing, reminders, saveReminder, deleteReminder };
 };
 
 export default useWaterData;

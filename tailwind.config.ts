@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -20,7 +19,7 @@ export default {
 		},
 		extend: {
       fontFamily: {
-        orbitron: ['Orbitron', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
       },
 			colors: {
 				border: 'hsl(var(--border))',
@@ -79,18 +78,9 @@ export default {
 						height: '0'
 					}
 				},
-        'fill-up': {
-          from: {
-            height: '0'
-          },
-          to: {
-            height: '100%'
-          }
-        },
-        'bubble-rise': {
-          '0%': { transform: 'translateY(0) scale(1)', opacity: '0.7' },
-          '50%': { opacity: '1' },
-          '100%': { transform: 'translateY(-250px) scale(1.5)', opacity: '0' },
+        'ice-crystal-rise': {
+          '0%': { transform: 'translateY(0) scale(0.5) rotate(0deg)', opacity: '0.5' },
+          '100%': { transform: 'translateY(-250px) scale(1) rotate(180deg)', opacity: '0' },
         },
         'wave': {
           '0%': { transform: 'translateX(0)' },
@@ -100,8 +90,7 @@ export default {
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-        'fill-up': 'fill-up 1s ease-out',
-        'bubble-rise': 'bubble-rise 4s ease-in-out infinite',
+        'ice-crystal-rise': 'ice-crystal-rise 6s linear infinite',
         'wave': 'wave 4s cubic-bezier(0.36, 0.45, 0.63, 0.53) infinite',
 			}
 		}
