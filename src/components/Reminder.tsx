@@ -35,7 +35,6 @@ const DAYS_OF_WEEK = [
 
 export interface ReminderType {
   id: string;
-  eventId?: string; // Google Calendar Event ID
   time: string;
   repeat: 'once' | 'daily' | 'custom';
   days: number[];
@@ -138,7 +137,7 @@ const Reminder: React.FC<ReminderProps> = ({ reminders, saveReminder, deleteRemi
                 <SheetHeader>
                   <SheetTitle>{reminders.some(r => r.id === editingReminder.id) ? 'Edit Reminder' : 'Set Hydration Reminder'}</SheetTitle>
                   <SheetDescription>
-                    Reminders will be created in your Google Calendar.
+                    Set reminders and get browser notifications to stay hydrated.
                   </SheetDescription>
                 </SheetHeader>
                 <div className="grid gap-6 py-4">
